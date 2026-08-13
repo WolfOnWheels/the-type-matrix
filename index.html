@@ -306,20 +306,22 @@ const ABOUT_HOSTS=[
   (lic,slug,file)=>'https://cdn.jsdelivr.net/gh/google/fonts/'+lic+'/'+slug+'/'+file,
   (lic,slug,file)=>'https://raw.githubusercontent.com/google/fonts/main/'+lic+'/'+slug+'/'+file
 ];
+let aboutBlocked=false;
 async function loadAbout(fam){
   if(aboutCache[fam]!==undefined) return aboutCache[fam];
   const slug=fam.toLowerCase().replace(/[^a-z0-9]/g,'');
   for(const lic of ['ofl','apache','ufl']){
     for(const file of ABOUT_FILES){
       for(const h of ABOUT_HOSTS){
-        try{ const r=await fetch(h(lic,slug,file));
+        const url=h(lic,slug,file);
+        try{ const r=await fetch(url);
           if(r.ok){ const html=await r.text();
             const tmp=document.createElement('div'); tmp.innerHTML=html;
             let paras=[...tmp.querySelectorAll('p')].map(p=>p.textContent.replace(/\s+/g,' ').trim()).filter(Boolean);
             if(!paras.length){ const t=tmp.textContent.replace(/\s+/g,' ').trim(); if(t) paras=[t]; }
             if(paras.length){ aboutCache[fam]=paras; return paras; }
           }
-        }catch(e){}
+        }catch(e){ aboutBlocked=true; console.warn('About fetch blocked:', url, e.message); }
       }
     }
   }
@@ -361,6 +363,7 @@ function select(fam){ current=fam; const f=FONTS[fam]; ensureWeights(fam);
   loadAbout(fam).then(paras=>{ if(current!==fam) return;
     const learn=' <a class="learn" href="'+aboutUrl+'" target="_blank" rel="noopener">Learn more →</a>';
     if(paras && paras.length){ els.copy.innerHTML = paras.slice(0,2).map(esc).join('<br><br>') + learn; }
+    else if(aboutBlocked){ els.copy.innerHTML = esc('The About text loads live from Google’s open-source font repository, but that request was blocked here — usually a file:// preview, a VPN, or an ad-blocker. View it on the published https site, or open it directly:') + ' ' + learn; }
     else { els.copy.innerHTML = esc('“'+fam+'” is an open-source typeface on Google Fonts.') + learn; }
   });
   BLOCKS.forEach(B=>{ populateWeights(B.wsel,f.w,B.pref); B.ssel.value=B.sdef; B.lhsel.value=B.lhd; B.trsel.value=B.trd; });
