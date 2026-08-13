@@ -77,10 +77,10 @@
   .designer a{color:#cbc9c1;text-decoration:none;border-bottom:1px solid rgba(216,195,154,.3);}
   .designer a:hover{color:var(--accent);border-color:var(--accent);}
   .ctrl{padding-top:18px;border-top:1px solid var(--panel-line);}
-  .ctrl-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-weight:600;}
+  .ctrl-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#AFAFAF;margin-bottom:12px;font-weight:600;}
   .ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;margin-bottom:4px;}
-  .ctrl-grid label{display:flex;flex-direction:column;gap:6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#3671e0;}
-  .ctrl-grid .val{color:#3671e0;font-variant-numeric:tabular-nums;}
+  .ctrl-grid label{display:flex;flex-direction:column;gap:6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#AFAFAF;}
+  .ctrl-grid .val{color:#AFAFAF;font-variant-numeric:tabular-nums;}
   .ctrl-grid input[type=range]{width:100%;accent-color:var(--accent);height:3px;}
   .wsel{background:rgba(255,255,255,.06);color:var(--ink);border:1px solid var(--panel-line);border-radius:6px;padding:6px;font:inherit;font-size:12px;}
   .toggle{display:flex;align-items:center;gap:10px;padding-top:20px;margin-top:20px;border-top:1px solid var(--panel-line);font-size:13px;color:#cbc9c1;cursor:pointer;user-select:none;}
@@ -97,7 +97,7 @@
   #panel.light .designer{color:#555;border-top-color:rgba(0,0,0,.12);}
   #panel.light .designer a{color:#333;}
   #panel.light .ctrl{border-top-color:rgba(0,0,0,.12);}
-  #panel.light .ctrl-h{color:#555;}
+  #panel.light .ctrl-h{color:#AFAFAF;}
   #panel.light .pbtn{border-color:rgba(0,0,0,.15);background:rgba(0,0,0,.04);color:#111;}
   #panel.light .toggle{color:#333;border-top-color:rgba(0,0,0,.12);}
   #panel.light .picon{border-color:rgba(0,0,0,.15);background:rgba(0,0,0,.04);color:#111;}
@@ -149,7 +149,7 @@
 
 <div id="guide">
   <p class="lead">Explore the universe of Google Fonts. Click on tiles to test and download the typeface.</p>
-  <p class="nav"><b>Drag</b> to look &middot; <b>Arrow keys</b> to move &middot; <b>Scroll</b> to fly</p>
+  <p class="nav"><b>WASD / arrows</b> move &middot; <b>Q / E</b> up &amp; down &middot; <b>Drag</b> look &middot; <b>Scroll</b> fly<br>Close the info panel (&times;) to move again.</p>
 </div>
 <div id="controls">
   <div class="theme active" data-theme="blue"><span class="sw sw-blue"></span><span class="tlabel">Night view</span></div>
@@ -274,9 +274,11 @@ window.addEventListener('mousemove',e=>{ if(!dragging) return;
   yaw-=dx*0.0026; pitch-=dy*0.0026; pitch=Math.max(-1.35,Math.min(1.35,pitch)); });
 canvas.addEventListener('wheel',e=>{ e.preventDefault(); camPos.addScaledVector(dir(), -e.deltaY*0.075); },{passive:false});
 function editing(){ const a=document.activeElement; return !!(a && (a.isContentEditable || a.tagName==='INPUT' || a.tagName==='TEXTAREA' || a.tagName==='SELECT')); }
-const NAVKEYS=['arrowup','arrowdown','arrowleft','arrowright'];
-window.addEventListener('keydown',e=>{ if(editing()) return; const k=e.key.toLowerCase();
-  if(NAVKEYS.includes(k)){ keys[k]=true; e.preventDefault(); } });
+function panelOpen(){ const p=document.getElementById('panel'); return p && !p.classList.contains('empty'); }
+function clearKeys(){ for(const k in keys) keys[k]=false; }
+const NAVKEYS=['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d','q','e'];
+window.addEventListener('keydown',e=>{ if(editing() || panelOpen()) return; const k=e.key.toLowerCase();
+  if(NAVKEYS.includes(k)){ keys[k]=true; if(k.indexOf('arrow')===0) e.preventDefault(); } });
 window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 function dir(){ return new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(-1); }
 function right(){ return new THREE.Vector3().crossVectors(dir(),new THREE.Vector3(0,1,0)).normalize(); }
@@ -353,19 +355,12 @@ function applyStyles(){ BLOCKS.forEach(B=>{
 BLOCKS.forEach(B=> [B.wsel,B.ssel,B.lhsel,B.trsel].forEach(el=> el.addEventListener('input',applyStyles)));
 
 function select(fam){ current=fam; const f=FONTS[fam]; ensureWeights(fam);
-  panel.classList.remove('empty');
+  panel.classList.remove('empty'); clearKeys();
   const dc=dcat(fam); els.cat.textContent=dc; els.cat.style.background=colorFor(fam);
   els.name.textContent=fam; els.name.href=f.url;
   els.des.innerHTML = f.des ? f.des.split(', ').map(nm=>'<a href="https://fonts.google.com/?query='+encodeURIComponent(nm)+'" target="_blank" rel="noopener">'+nm+'</a>').join(', ') : 'Unknown';
   [els.h1,els.sub,els.copy].forEach(n=> n.style.fontFamily='"'+fam+'", sans-serif');
-  els.copy.textContent='Loading description…';
-  const aboutUrl='https://fonts.google.com/specimen/'+encodeURIComponent(fam).replace(/%20/g,'+')+'/about';
-  loadAbout(fam).then(paras=>{ if(current!==fam) return;
-    const learn=' <a class="learn" href="'+aboutUrl+'" target="_blank" rel="noopener">Learn more →</a>';
-    if(paras && paras.length){ els.copy.innerHTML = paras.slice(0,2).map(esc).join('<br><br>') + learn; }
-    else if(aboutBlocked){ els.copy.innerHTML = esc('The About text loads live from Google’s open-source font repository, but that request was blocked here — usually a file:// preview, a VPN, or an ad-blocker. View it on the published https site, or open it directly:') + ' ' + learn; }
-    else { els.copy.innerHTML = esc('“'+fam+'” is an open-source typeface on Google Fonts.') + learn; }
-  });
+  els.copy.textContent=LOREM;
   BLOCKS.forEach(B=>{ populateWeights(B.wsel,f.w,B.pref); B.ssel.value=B.sdef; B.lhsel.value=B.lhd; B.trsel.value=B.trd; });
   applyStyles();
   els.dl.href='https://fonts.google.com/download?family='+encodeURIComponent(fam).replace(/%20/g,'+');
@@ -411,10 +406,12 @@ function animate(){ requestAnimationFrame(animate);
   } else if(fly){ fly.t+=dt/fly.dur; const k=ease(Math.min(fly.t,1));
     camPos.lerpVectors(fly.from,fly.to,k); yaw=fly.fy+(fly.ty-fly.fy)*k; pitch=fly.fp+(fly.tp-fly.fp)*k; if(fly.t>=1) fly=null;
   } else { const sp=60*dt, d=dir(), rt=right();
-    if(keys['arrowup']) camPos.addScaledVector(d,sp);
-    if(keys['arrowdown']) camPos.addScaledVector(d,-sp);
-    if(keys['arrowleft']) camPos.addScaledVector(rt,-sp);
-    if(keys['arrowright']) camPos.addScaledVector(rt,sp); }
+    if(keys['arrowup']||keys['w']) camPos.addScaledVector(d,sp);
+    if(keys['arrowdown']||keys['s']) camPos.addScaledVector(d,-sp);
+    if(keys['arrowleft']||keys['a']) camPos.addScaledVector(rt,-sp);
+    if(keys['arrowright']||keys['d']) camPos.addScaledVector(rt,sp);
+    if(keys['q']) camPos.y-=sp;
+    if(keys['e']) camPos.y+=sp; }
   camera.position.copy(camPos); camera.lookAt(_v.copy(camPos).add(dir()));
   tiles.forEach(t=>{ const u=t.userData;
     t.position.lerp(u.target||u.home, 0.12); t.lookAt(camera.position);
