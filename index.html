@@ -46,13 +46,15 @@
     font-size:12px;font-weight:600;color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.35);}
   .klabel{color:var(--muted);font-size:13px;}
   .krow b{color:#d6d4cd;font-weight:600;}
-  .themes{display:flex;gap:18px;margin-bottom:16px;flex-wrap:wrap;}
-  .theme{display:inline-flex;align-items:center;gap:8px;cursor:pointer;}
+  .themes{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .theme{display:inline-flex;align-items:center;gap:8px;cursor:pointer;height:32px;padding:0 13px 0 8px;
+    border-radius:20px;background:rgba(255,255,255,.06);border:1px solid var(--panel-line);transition:background .2s,border-color .2s;}
+  .theme:hover{background:rgba(255,255,255,.14);}
+  .theme.active{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);}
   .tlabel{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);transition:color .2s;white-space:nowrap;}
-  .theme.active .tlabel{color:var(--accent);}
+  .theme.active .tlabel{color:var(--ink);}
   .sw{width:20px;height:20px;border-radius:6px;padding:0;flex:0 0 auto;
-    border:2px solid transparent;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:border-color .2s,transform .15s;}
-  .theme:hover .sw{transform:translateY(-1px);}
+    border:2px solid transparent;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:border-color .2s;}
   .theme.active .sw{border-color:#ffffff;}
   .sw-blue{background:radial-gradient(circle at 34% 30%, #00c8ff, #00c8e1, #00afff, #7dafff 78%, #0096ff);}
   .sw-green{background:radial-gradient(circle at 34% 30%, #ffff64, #c8ff64 22%, #64ff64, #64e1e1, #64ffc8);}
@@ -127,7 +129,7 @@
   <div class="sp-head">
     <div>
       <h1 id="homeTitle" title="Back to start">The Type Matrix</h1>
-      <span class="byline">498 Google Fonts &middot; Vibe coding by Wolf with Claude Code</span>
+      <span class="byline">498 Google Fonts &middot; A Vibe Coding Project by Wolf Strack with Claude Code</span>
     </div>
     <button id="spToggle" class="sp-min" title="Collapse">&#8863;</button>
   </div>
@@ -265,6 +267,7 @@ const NX=10, NY=6, NZ=9, S=14.0;
 const FADE0=2.2*S, FADE1=7.0*S;   // distance transparency: near 100% -> far 50%
 const FLOORY=-(NY-1)/2*S - 8;
 let tileLerp=0.12;                 // per-frame tile move speed (lowered for slow reshuffles)
+let refreshIdx=0, refreshDone=false;  // gentle post-intro safety redraw, spread across frames
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(800,800), new THREE.MeshBasicMaterial({color:0x070709}));
 floor.rotation.x=-Math.PI/2; floor.position.y=FLOORY; scene.add(floor);
 
@@ -288,8 +291,7 @@ function buildTiles(){
     const gm=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:e.gtex,transparent:true,opacity:0,depthWrite:false,fog:true,blending:THREE.AdditiveBlending}));
     gm.userData={src:m}; ghostGroup.add(gm); ghosts.push(gm);
   });
-  document.fonts.ready.then(()=>entries.forEach(refresh));
-  setTimeout(()=>entries.forEach(refresh),1800);
+  // (safety redraw is done gently AFTER the intro, spread across frames — see animate)
 }
 
 /* ---------- controls ---------- */
@@ -443,6 +445,9 @@ const moveVel=new THREE.Vector3(), _want=new THREE.Vector3();
 const MAXSPD=36, ACCEL=7;   // ACCEL controls the ease-in/out ramp
 function animate(){ requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05);
+  if(!intro && !refreshDone){ const end=Math.min(refreshIdx+6, entries.length);   // spread the safety redraw over frames, after the intro
+    for(;refreshIdx<end;refreshIdx++) refresh(entries[refreshIdx]);
+    if(refreshIdx>=entries.length) refreshDone=true; }
   if(intro){ introT+=dt/INTRO_DUR; const k=ease(Math.min(introT,1));
     camPos.lerpVectors(introStart,introEnd,k); yaw=introYaw0*(1-k); pitch=introPit0*(1-k); if(introT>=1) intro=false;
   } else if(fly){ fly.t+=dt/fly.dur; const k=ease(Math.min(fly.t,1));
@@ -482,7 +487,8 @@ const CATORDER=['Sans Serif','Serif','Slab Serif','Display','Handwriting','Monos
 function dcat(fam){ return slabSet.has(fam) ? 'Slab Serif' : FONTS[fam].cat; }
 function orderByCategory(){
   tileLerp=0.05;   // slow, deliberate sort
-  const pos=makeLayout();                       // lattice positions in fixed order
+  const pos=makeLayout();                       // the actual occupied slots
+  pos.sort((a,b)=> a.y-b.y || a.z-b.z || a.x-b.x);   // order by row so categories stack as horizontal bands, not depth slabs
   const sorted=tiles.slice().sort((a,b)=>{
     const ca=CATORDER.indexOf(dcat(a.userData.family)), cb=CATORDER.indexOf(dcat(b.userData.family));
     if(ca!==cb) return ca-cb;
